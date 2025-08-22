@@ -31,6 +31,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const CreditCardInterestCalculator = () => {
+  // 預設銀行列表（包含結帳日和繳款日規則）
+  const defaultBanks = [
+    { name: "中國信託", statementDays: [5, 7, 10, 12, 15, 17, 20, 22, 25, 27], paymentDays: 18 },
+    { name: "國泰世華", statementDays: [3, 5, 7, 8, 9, 10, 15, 17, 19, 21, 22, 23, 27], paymentDays: 16 },
+    { name: "台北富邦", statementDays: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26], paymentDays: 16 },
+    { name: "台新銀行", statementDays: [2, 7, 12, 17, 20, 22, 27], paymentDays: 15 },
+    { name: "星展銀行(台灣)", statementDays: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26], paymentDays: 18 },
+    { name: "永豐商銀", statementDays: [5, 9, 12, 14, 16, 18, 21, 23, 26], paymentDays: 15 },
+    { name: "滙豐銀行", statementDays: [3, 6, 9, 12, 15, 18, 21, 24, 27], paymentDays: 18 },
+    { name: "三信商銀", statementDays: [5], paymentDays: 15, fixedPaymentDay: 20 },
+    { name: "新光銀行", statementDays: [2, 12, 14, 23, 27], paymentDays: 16 },
+    { name: "玉山商銀", statementDays: [3, 5, 7, 11, 13, 15, 21, 25, 27, 28], paymentDays: 15 },
+    { name: "第一銀行", statementDays: [3, 5, 10, 12, 20, 30, 31], paymentDays: 15 },
+    { name: "聯邦商銀", statementDays: [3, 6, 9, 12, 17, 19, 22, 27, 29], paymentDays: 15 },
+    { name: "遠東商銀", statementDays: [1, 2, 4, 5, 7, 10, 13, 16, 17, 19, 22, 25, 27], paymentDays: [20, 24, 28, 3, 7, 13] },
+    { name: "上海商銀", statementDays: [2, 6, 11, 16, 21, 26], paymentDays: 18 },
+    { name: "元大商銀", statementDays: [1, 6, 10, 18, 22, 26], paymentDays: 17 },
+    { name: "兆豐商銀", statementDays: [3, 6, 9, 12, 15, 18, 21, 24, 27], paymentDays: 15 },
+    { name: "凱基銀行", statementDays: [4, 8, 12, 16, 19, 22, 25, 30, 31], paymentDays: 17 },
+    { name: "台中商銀", statementDays: [5], paymentDays: 16, fixedPaymentDay: 21 },
+    { name: "合作金庫", statementDays: [1], paymentDays: 14, fixedPaymentDay: 15 },
+    { name: "土地銀行", statementDays: [3, 6, 9, 13, 16, 19, 23, 26, 30], paymentDays: 14 },
+    { name: "彰化銀行", statementDays: ["last"], paymentDays: 18 },
+    { name: "渣打商銀", statementDays: [2, 5, 13, 14, 19, 26, 27], paymentDays: 21 },
+    { name: "臺灣企銀", statementDays: [1, 7], paymentDays: [14, 8] },
+    { name: "臺灣銀行", statementDays: [5, 15, 25], paymentDays: 10 },
+    { name: "華南商銀", statementDays: [1, 7, 17, 23], paymentDays: 15 },
+    { name: "華泰商業銀行", statementDays: [3], paymentDays: 18, fixedPaymentDay: 21 },
+    { name: "陽信商銀", statementDays: [3], paymentDays: 15, fixedPaymentDay: 18 },
+    { name: "高雄銀行", statementDays: [4, 7, 14, 17, 24, 27], paymentDays: 15 },
+    { name: "樂天信用卡", statementDays: [15], paymentDays: 15 },
+    { name: "王道銀行(O-Bank)", statementDays: [15], paymentDays: 15 },
+    { name: "將來商業銀行", statementDays: [15], paymentDays: 15 },
+    { name: "連線銀行", statementDays: [15], paymentDays: 15 }
+  ]
+
   const [calculatorForm, setCalculatorForm] = useState({
     // 基本設定
     bankName: "", // 銀行名稱
@@ -67,6 +103,19 @@ const CreditCardInterestCalculator = () => {
   })
   const [paymentLimitInfo, setPaymentLimitInfo] = useState(null)
 
+  // 編輯相關狀態
+  const [editingRecord, setEditingRecord] = useState(null)
+  const [editForm, setEditForm] = useState({
+    amount: "",
+    date: "",
+    description: "",
+    postingDate: "", // 僅用於消費記錄
+  })
+  
+  // 批次刪除相關狀態
+  const [selectedRecords, setSelectedRecords] = useState(new Set())
+  const [isSelectMode, setIsSelectMode] = useState(false)
+
   // 表格相關狀態
   const [sortBy, setSortBy] = useState("date") // date, bank
   const [sortOrder, setSortOrder] = useState("desc") // asc, desc
@@ -89,7 +138,7 @@ const CreditCardInterestCalculator = () => {
   }, [newPayment.paymentDate, calculatorForm.bankName, savedRecords])
 
   // 處理表單變更
-  const handleFormChange = (field, value) => {
+  const handleFormChange = (field: string, value: string) => {
     setCalculatorForm((prev) => ({
       ...prev,
       [field]: value,
@@ -98,10 +147,10 @@ const CreditCardInterestCalculator = () => {
 
   // 計算各銀行統計資料
   const calculateBankSummary = () => {
-    const bankStats = {}
+    const bankStats: Record<string, any> = {}
 
     // 按銀行分組記錄
-    savedRecords.forEach((record) => {
+    savedRecords.forEach((record: any) => {
       if (!bankStats[record.bankName]) {
         bankStats[record.bankName] = {
           bankName: record.bankName,
@@ -124,9 +173,9 @@ const CreditCardInterestCalculator = () => {
 
     // 計算各銀行的剩餘欠款和利息
     Object.keys(bankStats).forEach((bankName) => {
-      const bankRecords = savedRecords.filter((r) => r.bankName === bankName)
-      const purchaseRecords = bankRecords.filter((r) => r.type === "purchase")
-      const paymentRecords = bankRecords.filter((r) => r.type === "payment")
+      const bankRecords = savedRecords.filter((r: any) => r.bankName === bankName)
+      const purchaseRecords = bankRecords.filter((r: any) => r.type === "purchase")
+      const paymentRecords = bankRecords.filter((r: any) => r.type === "payment")
 
       if (purchaseRecords.length > 0) {
         // 找到該銀行的設定（使用最新的記錄）
@@ -134,6 +183,7 @@ const CreditCardInterestCalculator = () => {
         const bankSettings = {
           annualInterestRate: latestRecord.annualInterestRate || "15",
           statementDay: latestRecord.statementDay || "5",
+          paymentDueDay: latestRecord.paymentDueDay || "20",
         }
 
         // 計算該銀行的循環利息
@@ -147,9 +197,10 @@ const CreditCardInterestCalculator = () => {
   }
 
   // 計算特定銀行的循環利息
-  const calculateBankInterest = (purchaseRecords, paymentRecords, bankSettings) => {
+  const calculateBankInterest = (purchaseRecords: any[], paymentRecords: any[], bankSettings: any) => {
     const rate = Number.parseFloat(bankSettings.annualInterestRate) / 100
     const statementDay = Number.parseInt(bankSettings.statementDay)
+    const paymentDueDay = Number.parseInt(bankSettings.paymentDueDay)
 
     if (purchaseRecords.length === 0) {
       return { unpaidAmount: 0, interest: 0 }
@@ -158,17 +209,27 @@ const CreditCardInterestCalculator = () => {
     // 找到最早的入帳日期
     const earliestPostingDate = new Date(Math.min(...purchaseRecords.map((p) => new Date(p.postingDate))))
 
-    // 計算第二期結帳日
-    const secondStatementDate = new Date(earliestPostingDate)
-    secondStatementDate.setDate(statementDay)
-    if (secondStatementDate <= earliestPostingDate) {
-      secondStatementDate.setMonth(secondStatementDate.getMonth() + 1)
+    // 計算第一期結帳日
+    const firstStatementDate = new Date(earliestPostingDate)
+    firstStatementDate.setDate(statementDay)
+    if (firstStatementDate <= earliestPostingDate) {
+      firstStatementDate.setMonth(firstStatementDate.getMonth() + 1)
     }
+
+    // 計算第一期繳款截止日
+    const firstDueDate = new Date(firstStatementDate)
+    firstDueDate.setDate(paymentDueDay)
+    if (firstDueDate.getDate() < firstStatementDate.getDate()) {
+      firstDueDate.setMonth(firstDueDate.getMonth() + 1)
+    }
+
+    // 計算第二期結帳日
+    const secondStatementDate = new Date(firstStatementDate)
     secondStatementDate.setMonth(secondStatementDate.getMonth() + 1)
 
     // 計算每筆消費的循環利息
     const purchaseInterestDetails = purchaseRecords.map((purchase) => {
-      const interestInfo = calculatePurchaseInterest(purchase, paymentRecords, secondStatementDate, rate)
+      const interestInfo = calculatePurchaseInterest(purchase, paymentRecords, secondStatementDate, rate, firstDueDate)
       return {
         ...purchase,
         ...interestInfo,
@@ -186,10 +247,10 @@ const CreditCardInterestCalculator = () => {
   }
 
   // 計算指定日期和銀行的繳款上限
-  const calculatePaymentLimit = (paymentDate, bankName) => {
-    const bankRecords = savedRecords.filter((r) => r.bankName === bankName)
-    const purchaseRecords = bankRecords.filter((r) => r.type === "purchase")
-    const paymentRecords = bankRecords.filter((r) => r.type === "payment" && r.paymentDate <= paymentDate)
+  const calculatePaymentLimit = (paymentDate: string, bankName: string) => {
+    const bankRecords = savedRecords.filter((r: any) => r.bankName === bankName)
+    const purchaseRecords = bankRecords.filter((r: any) => r.type === "purchase")
+    const paymentRecords = bankRecords.filter((r: any) => r.type === "payment" && r.paymentDate <= paymentDate)
 
     if (purchaseRecords.length === 0) {
       setPaymentLimitInfo(null)
@@ -307,6 +368,114 @@ const CreditCardInterestCalculator = () => {
       setSavedRecords(savedRecords.filter((record) => record.id !== id))
     }
   }
+  
+  // 批次刪除相關函數
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode)
+    setSelectedRecords(new Set())
+  }
+  
+  const toggleRecordSelection = (recordId) => {
+    setSelectedRecords(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(recordId)) {
+        newSet.delete(recordId)
+      } else {
+        newSet.add(recordId)
+      }
+      return newSet
+    })
+  }
+  
+  const deleteSelectedRecords = () => {
+    if (selectedRecords.size === 0) return
+    
+    if (confirm(`確定要刪除選中的 ${selectedRecords.size} 筆記錄嗎？`)) {
+      setSavedRecords(prev => prev.filter(record => !selectedRecords.has(record.id)))
+      setSelectedRecords(new Set())
+      setIsSelectMode(false)
+    }
+  }
+  
+  const deleteAllBankRecords = () => {
+    if (!calculatorForm.bankName) return
+    
+    const bankRecords = savedRecords.filter(r => r.bankName === calculatorForm.bankName)
+    if (bankRecords.length === 0) return
+    
+    if (confirm(`確定要刪除 ${calculatorForm.bankName} 的所有記錄嗎？共 ${bankRecords.length} 筆`)) {
+      setSavedRecords(prev => prev.filter(record => record.bankName !== calculatorForm.bankName))
+      setSelectedRecords(new Set())
+      setIsSelectMode(false)
+    }
+  }
+
+  // 開始編輯記錄
+  const startEditRecord = (record) => {
+    setEditingRecord(record)
+    setEditForm({
+      amount: record.amount.toString(),
+      date: record.type === "purchase" ? record.purchaseDate : record.paymentDate,
+      description: record.description || "",
+      postingDate: record.type === "purchase" ? record.postingDate : "",
+    })
+  }
+
+  // 保存編輯
+  const saveEditRecord = () => {
+    if (!editingRecord || !editForm.amount || !editForm.date) {
+      alert("請填寫必要欄位")
+      return
+    }
+
+    const updatedRecords = savedRecords.map((record) => {
+      if (record.id === editingRecord.id) {
+        if (record.type === "purchase") {
+          // 更新消費記錄
+          const purchaseDate = new Date(editForm.date)
+          const postingDate = new Date(purchaseDate)
+          postingDate.setDate(postingDate.getDate() + 3)
+
+          return {
+            ...record,
+            amount: Number.parseFloat(editForm.amount),
+            purchaseDate: editForm.date,
+            postingDate: postingDate.toISOString().split("T")[0],
+            description: editForm.description,
+          }
+        } else {
+          // 更新繳款記錄
+          return {
+            ...record,
+            amount: Number.parseFloat(editForm.amount),
+            paymentDate: editForm.date,
+            description: editForm.description,
+          }
+        }
+      }
+      return record
+    })
+
+    setSavedRecords(updatedRecords)
+    setEditingRecord(null)
+    setEditForm({
+      amount: "",
+      date: "",
+      description: "",
+      postingDate: "",
+    })
+  }
+
+  // 取消編輯
+  const cancelEdit = () => {
+    setEditingRecord(null)
+    setEditForm({
+      amount: "",
+      date: "",
+      description: "",
+      postingDate: "",
+    })
+  }
 
   // 根據繳款類型自動計算金額
   const calculatePaymentAmount = (paymentType) => {
@@ -336,20 +505,37 @@ const CreditCardInterestCalculator = () => {
   }
 
   // 計算每筆消費的循環利息
-  const calculatePurchaseInterest = (purchase, allPayments, calculationDate, rate = null) => {
+  const calculatePurchaseInterest = (purchase: any, allPayments: any[], calculationDate: Date, rate: number | null = null, paymentDueDate: Date | null = null) => {
     const interestRate = rate || Number.parseFloat(calculatorForm.annualInterestRate) / 100
 
     // 計算從入帳日到計算日的天數
     const postingDate = new Date(purchase.postingDate)
     const calcDate = new Date(calculationDate)
-    const daysDiff = Math.floor((calcDate - postingDate) / (1000 * 60 * 60 * 24))
+    
+    // 如果有繳款截止日，且繳款截止日前已繳清，則不計算利息
+    if (paymentDueDate) {
+      const dueDate = new Date(paymentDueDate)
+      const paymentsBeforeDue = allPayments.filter(p => 
+        new Date(p.paymentDate) <= dueDate
+      )
+      
+      // 計算繳款截止日前的總繳款金額
+      const totalPaymentBeforeDue = paymentsBeforeDue.reduce((sum, p) => sum + p.amount, 0)
+      
+      // 如果繳款截止日前已繳清，不計算利息
+      if (totalPaymentBeforeDue >= purchase.amount) {
+        return { interest: 0, daysDiff: 0, remainingAmount: 0 }
+      }
+    }
+
+    const daysDiff = Math.floor((calcDate.getTime() - postingDate.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysDiff <= 0) return { interest: 0, daysDiff: 0, remainingAmount: purchase.amount }
 
     // 計算針對這筆消費的繳款金額（按時間順序，先還舊債）
     const paymentsForThisPurchase = allPayments
-      .filter((p) => p.paymentDate >= purchase.postingDate && p.paymentDate <= calculationDate)
-      .sort((a, b) => new Date(a.paymentDate) - new Date(b.paymentDate))
+      .filter((p) => p.paymentDate >= purchase.postingDate && p.paymentDate <= calculationDate.toISOString().split("T")[0])
+      .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())
 
     let remainingAmount = purchase.amount
     let totalInterest = 0
@@ -358,7 +544,7 @@ const CreditCardInterestCalculator = () => {
     // 逐筆計算繳款對利息的影響
     for (const payment of paymentsForThisPurchase) {
       const paymentDate = new Date(payment.paymentDate)
-      const daysBeforePayment = Math.floor((paymentDate - lastDate) / (1000 * 60 * 60 * 24))
+      const daysBeforePayment = Math.floor((paymentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
 
       if (daysBeforePayment > 0 && remainingAmount > 0) {
         // 計算繳款前的利息
@@ -375,7 +561,7 @@ const CreditCardInterestCalculator = () => {
 
     // 計算最後一次繳款到計算日的利息
     if (remainingAmount > 0) {
-      const finalDays = Math.floor((calcDate - lastDate) / (1000 * 60 * 60 * 24))
+      const finalDays = Math.floor((calcDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
       if (finalDays > 0) {
         const finalInterest = (remainingAmount * interestRate * finalDays) / 365
         totalInterest += finalInterest
@@ -443,7 +629,7 @@ const CreditCardInterestCalculator = () => {
 
     // 計算每筆消費的循環利息
     const purchaseInterestDetails = purchaseRecords.map((purchase) => {
-      const interestInfo = calculatePurchaseInterest(purchase, paymentRecords, secondStatementDate)
+      const interestInfo = calculatePurchaseInterest(purchase, paymentRecords, secondStatementDate, rate, firstDueDate)
       return {
         ...purchase,
         ...interestInfo,
@@ -463,7 +649,7 @@ const CreditCardInterestCalculator = () => {
     // 計算違約金
     const defaultFee = isDefaulted ? lateFee : 0
 
-    // 計算下一期帳單總額
+    // 計算下一期帳單總額（不包含已還款金額）
     const nextStatementTotal = totalUnpaidAmount + totalInterest + defaultFee
 
     // 計算下一期最低應繳金額
@@ -514,20 +700,14 @@ const CreditCardInterestCalculator = () => {
   const generateTimeline = (purchaseRecords, paymentRecords, dates) => {
     const events = []
 
-    // 添加消費事件
+    // 添加消費事件（只顯示消費日，不重複顯示入帳日）
     purchaseRecords.forEach((purchase) => {
       events.push({
         date: purchase.purchaseDate,
         type: "purchase",
-        description: `消費日：刷卡 ${purchase.amount.toLocaleString()} 元`,
+        description: `消費：${purchase.amount.toLocaleString()} 元`,
         amount: purchase.amount,
-      })
-
-      events.push({
-        date: purchase.postingDate,
-        type: "posting",
-        description: `入帳日：${purchase.amount.toLocaleString()} 元入帳`,
-        amount: purchase.amount,
+        postingDate: purchase.postingDate, // 保留入帳日資訊但不顯示
       })
     })
 
@@ -614,6 +794,133 @@ const CreditCardInterestCalculator = () => {
     return banks.sort()
   }
 
+  // 獲取銀行選項（預設銀行 + 已使用的銀行）
+  const getBankOptions = () => {
+    const usedBanks = getAllBanks()
+    const defaultBankNames = defaultBanks.map(bank => bank.name)
+    
+    // 合併預設銀行和已使用的銀行，去重
+    const allBanks = [...new Set([...defaultBankNames, ...usedBanks])]
+    return allBanks.sort()
+  }
+
+  // 根據銀行名稱獲取銀行設定
+  const getBankSettings = (bankName: string) => {
+    return defaultBanks.find(bank => bank.name === bankName) || null
+  }
+
+  // 自動填入銀行設定
+  const autoFillBankSettings = (bankName: string) => {
+    const bankSettings = getBankSettings(bankName)
+    if (bankSettings) {
+      // 設定結帳日（預設為第一個可選日期）
+      const defaultStatementDay = Array.isArray(bankSettings.statementDays) && bankSettings.statementDays.length > 0 
+        ? bankSettings.statementDays[0].toString() 
+        : "15"
+      
+      // 設定繳款日（根據銀行規則計算）
+      let defaultPaymentDueDay = "15"
+      if (bankSettings.fixedPaymentDay) {
+        // 固定繳款日
+        defaultPaymentDueDay = bankSettings.fixedPaymentDay.toString()
+      } else if (Array.isArray(bankSettings.paymentDays)) {
+        // 固定繳款日列表
+        defaultPaymentDueDay = bankSettings.paymentDays[0].toString()
+      } else if (typeof bankSettings.paymentDays === 'number') {
+        // 結帳日加天數
+        defaultPaymentDueDay = (parseInt(defaultStatementDay) + bankSettings.paymentDays).toString()
+      }
+
+      setCalculatorForm(prev => ({
+        ...prev,
+        bankName,
+        statementDay: defaultStatementDay,
+        paymentDueDay: defaultPaymentDueDay,
+        annualInterestRate: "15.00", // 預設年利率
+        minimumPaymentRate: "10.00", // 預設最低應繳比例
+        latePaymentFee: "300" // 預設違約金
+      }))
+    }
+  }
+
+  // 計算下一個結帳日
+  const getNextStatementDate = (currentDate: Date, statementDay: number | string) => {
+    const currentMonth = currentDate.getMonth()
+    const currentYear = currentDate.getFullYear()
+    
+    if (statementDay === "last") {
+      // 月底結帳
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0)
+      return lastDayOfMonth
+    }
+    
+    const statementDayNum = parseInt(statementDay.toString())
+    let nextStatementDate = new Date(currentYear, currentMonth, statementDayNum)
+    
+    // 如果當月結帳日已過，找下個月
+    if (nextStatementDate <= currentDate) {
+      nextStatementDate = new Date(currentYear, currentMonth + 1, statementDayNum)
+    }
+    
+    return nextStatementDate
+  }
+
+  // 計算繳款截止日
+  const getPaymentDueDate = (statementDate: Date, bankName: string) => {
+    const bankSettings = getBankSettings(bankName)
+    if (!bankSettings) return null
+    
+    if (bankSettings.fixedPaymentDay) {
+      // 固定繳款日
+      const dueMonth = statementDate.getMonth()
+      const dueYear = statementDate.getFullYear()
+      return new Date(dueYear, dueMonth, bankSettings.fixedPaymentDay)
+    } else if (Array.isArray(bankSettings.paymentDays)) {
+      // 固定繳款日列表（簡化處理，使用第一個）
+      const dueMonth = statementDate.getMonth()
+      const dueYear = statementDate.getFullYear()
+      return new Date(dueYear, dueMonth, bankSettings.paymentDays[0])
+    } else if (typeof bankSettings.paymentDays === 'number') {
+      // 結帳日加天數
+      const dueDate = new Date(statementDate)
+      dueDate.setDate(dueDate.getDate() + bankSettings.paymentDays)
+      return dueDate
+    }
+    
+    return null
+  }
+
+  // 合併繳款類型選項
+  const getPaymentTypeOptions = () => {
+    if (!paymentLimitInfo) return []
+
+    const options = [
+      {
+        value: "full",
+        label: "全額繳清",
+        amount: paymentLimitInfo.limit,
+        description: `繳清全部欠款 NT$ ${paymentLimitInfo.limit.toLocaleString()} 元`,
+      },
+      {
+        value: "minimum",
+        label: "最低應繳",
+        amount: Math.min(
+          paymentLimitInfo.limit * (Number.parseFloat(calculatorForm.minimumPaymentRate) / 100),
+          paymentLimitInfo.limit
+        ),
+        description: `最低應繳金額`,
+      },
+      {
+        value: "custom",
+        label: "自訂金額",
+        amount: null,
+        description: "輸入自訂繳款金額",
+      },
+    ]
+
+    return options
+  }
+
   // 排序記錄
   const getSortedRecords = () => {
     let filteredRecords = savedRecords
@@ -647,6 +954,57 @@ const CreditCardInterestCalculator = () => {
     }
   }
 
+  // 獲取銀行的結帳日選項
+  const getBankStatementDays = (bankName: string) => {
+    const bankSettings = getBankSettings(bankName)
+    if (!bankSettings) return []
+    
+    if (Array.isArray(bankSettings.statementDays)) {
+      return bankSettings.statementDays.map(day => ({
+        value: day.toString(),
+        label: day === "last" ? "月底" : `${day}日`
+      }))
+    }
+    
+    return []
+  }
+
+  // 更新銀行選擇後的處理
+  const handleBankChange = (bankName: string) => {
+    handleFormChange("bankName", bankName)
+    
+    // 如果選擇的銀行在預設列表中，自動填入設定
+    if (defaultBanks.some(bank => bank.name === bankName)) {
+      autoFillBankSettings(bankName)
+    }
+  }
+
+  // 更新結帳日後的處理
+  const handleStatementDayChange = (statementDay: string) => {
+    handleFormChange("statementDay", statementDay)
+    
+    // 重新計算繳款截止日
+    if (calculatorForm.bankName) {
+      const bankSettings = getBankSettings(calculatorForm.bankName)
+      if (bankSettings) {
+        let newPaymentDueDay = "15"
+        
+        if (bankSettings.fixedPaymentDay) {
+          // 固定繳款日
+          newPaymentDueDay = bankSettings.fixedPaymentDay.toString()
+        } else if (Array.isArray(bankSettings.paymentDays)) {
+          // 固定繳款日列表
+          newPaymentDueDay = bankSettings.paymentDays[0].toString()
+        } else if (typeof bankSettings.paymentDays === 'number') {
+          // 結帳日加天數
+          newPaymentDueDay = (parseInt(statementDay) + bankSettings.paymentDays).toString()
+        }
+        
+        handleFormChange("paymentDueDay", newPaymentDueDay)
+      }
+    }
+  }
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 p-4 md:p-6">
@@ -673,19 +1031,19 @@ const CreditCardInterestCalculator = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* 左側：資料輸入區 */}
                 <div className="lg:col-span-1 space-y-6">
-                  {/* 基本設定 */}
+                  {/* 信用卡設定與消費記錄 */}
                   <Card className="shadow-lg">
                     <CardHeader className="bg-gradient-to-r from-red-600 to-red-700 text-white">
                       <CardTitle className="flex items-center text-lg">
                         <Building2 className="w-5 h-5 mr-2" />
-                        信用卡基本設定
+                        信用卡設定與消費記錄
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
                             showHelp(
-                              "信用卡基本設定說明",
-                              "請先選擇或輸入銀行名稱，然後設定該銀行信用卡的基本參數。不同銀行的利率和費用可能不同，系統會分別計算各家銀行的循環利息。",
+                              "信用卡設定與消費記錄說明",
+                              "請先選擇或輸入銀行名稱，設定該銀行信用卡的基本參數，然後新增消費記錄。不同銀行的利率和費用可能不同，系統會分別計算各家銀行的循環利息。",
                             )
                           }
                           className="ml-auto"
@@ -695,162 +1053,255 @@ const CreditCardInterestCalculator = () => {
                       </CardTitle>
                     </CardHeader>
 
-                    <CardContent className="p-4 space-y-4">
-                      <div>
-                        <Label htmlFor="bankName" className="text-sm">
-                          銀行名稱
-                        </Label>
-                        <Input
-                          id="bankName"
-                          value={calculatorForm.bankName}
-                          onChange={(e) => handleFormChange("bankName", e.target.value)}
-                          placeholder="請輸入銀行名稱，例：台新銀行"
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
+                    <CardContent className="p-4 space-y-6">
+                      {/* 銀行設定區 */}
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">銀行基本設定</h3>
+                        
                         <div>
-                          <Label htmlFor="annualInterestRate" className="text-sm">
-                            年利率 (%)
+                          <Label htmlFor="bankName" className="text-sm">
+                            銀行名稱
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="bankName"
+                              value={calculatorForm.bankName}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                handleBankChange(value)
+                              }}
+                              placeholder="輸入或選擇銀行名稱"
+                              className="w-full pr-10"
+                            />
+                            {/* 銀行選擇下拉按鈕 */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-gray-100"
+                              onClick={() => {
+                                // 如果當前有輸入值，清空後顯示所有選項
+                                if (calculatorForm.bankName) {
+                                  handleFormChange("bankName", "")
+                                }
+                              }}
+                            >
+                              <Building2 className="w-4 h-4 text-gray-500" />
+                            </Button>
+                            
+                            {/* 銀行名稱提示下拉選單 - 只在輸入時顯示，選擇後隱藏 */}
+                            {calculatorForm.bankName && calculatorForm.bankName.length > 0 && !defaultBanks.some(bank => bank.name === calculatorForm.bankName) && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                {defaultBanks
+                                  .filter(bank => 
+                                    bank.name.toLowerCase().includes(calculatorForm.bankName.toLowerCase())
+                                  )
+                                  .map((bank) => (
+                                    <div
+                                      key={bank.name}
+                                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b last:border-b-0"
+                                      onClick={() => handleBankChange(bank.name)}
+                                    >
+                                      <div className="flex items-center">
+                                        <Building2 className="w-4 h-4 text-gray-500 mr-2" />
+                                        {bank.name}
+                                      </div>
+                                    </div>
+                                  ))}
+                                {defaultBanks.filter(bank => bank.name.toLowerCase().includes(calculatorForm.bankName.toLowerCase())).length === 0 && (
+                                  <div className="px-3 py-2 text-sm text-gray-500 border-t">
+                                    <div className="flex items-center">
+                                      <Info className="w-4 h-4 text-gray-400 mr-2" />
+                                      使用自訂銀行名稱
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* 顯示所有銀行選項的下拉選單 */}
+                            {!calculatorForm.bankName && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                <div className="px-3 py-2 text-xs text-gray-500 border-b bg-gray-50">
+                                  選擇預設銀行或輸入自訂名稱
+                                </div>
+                                {getBankOptions().map((bank) => (
+                                  <div
+                                    key={bank}
+                                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b last:border-b-0"
+                                    onClick={() => handleBankChange(bank)}
+                                  >
+                                    <div className="flex items-center">
+                                      <Building2 className="w-4 h-4 text-gray-500 mr-2" />
+                                      {bank}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {calculatorForm.bankName && getBankSettings(calculatorForm.bankName) && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              ✓ 已載入 {calculatorForm.bankName} 的設定
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="annualInterestRate" className="text-sm">
+                              年利率 (%)
+                            </Label>
+                            <Input
+                              id="annualInterestRate"
+                              type="number"
+                              min="0"
+                              max="30"
+                              step="0.01"
+                              value={calculatorForm.annualInterestRate}
+                              onChange={(e) => handleFormChange("annualInterestRate", e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="minimumPaymentRate" className="text-sm">
+                              最低應繳比例 (%)
+                            </Label>
+                            <Input
+                              id="minimumPaymentRate"
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={calculatorForm.minimumPaymentRate}
+                              onChange={(e) => handleFormChange("minimumPaymentRate", e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label htmlFor="statementDay" className="text-sm">
+                              結帳日 (每月哪一日)
+                            </Label>
+                            {calculatorForm.bankName && getBankSettings(calculatorForm.bankName) ? (
+                              <Select
+                                value={calculatorForm.statementDay}
+                                onValueChange={handleStatementDayChange}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue placeholder="選擇結帳日" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getBankStatementDays(calculatorForm.bankName).map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                id="statementDay"
+                                type="number"
+                                min="1"
+                                max="31"
+                                value={calculatorForm.statementDay}
+                                onChange={(e) => handleFormChange("statementDay", e.target.value)}
+                                className="mt-1"
+                                placeholder="請先選擇銀行"
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="paymentDueDay" className="text-sm">
+                              繳款截止日 (每月哪一日)
+                            </Label>
+                            <Input
+                              id="paymentDueDay"
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={calculatorForm.paymentDueDay}
+                              onChange={(e) => handleFormChange("paymentDueDay", e.target.value)}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="latePaymentFee" className="text-sm">
+                            違約金 (元)
                           </Label>
                           <Input
-                            id="annualInterestRate"
+                            id="latePaymentFee"
                             type="number"
                             min="0"
-                            max="30"
-                            step="0.01"
-                            value={calculatorForm.annualInterestRate}
-                            onChange={(e) => handleFormChange("annualInterestRate", e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="minimumPaymentRate" className="text-sm">
-                            最低應繳比例 (%)
-                          </Label>
-                          <Input
-                            id="minimumPaymentRate"
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={calculatorForm.minimumPaymentRate}
-                            onChange={(e) => handleFormChange("minimumPaymentRate", e.target.value)}
+                            value={calculatorForm.latePaymentFee}
+                            onChange={(e) => handleFormChange("latePaymentFee", e.target.value)}
                             className="mt-1"
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor="statementDay" className="text-sm">
-                            結帳日 (每月哪一日)
-                          </Label>
-                          <Input
-                            id="statementDay"
-                            type="number"
-                            min="1"
-                            max="31"
-                            value={calculatorForm.statementDay}
-                            onChange={(e) => handleFormChange("statementDay", e.target.value)}
-                            className="mt-1"
-                          />
+                      {/* 分隔線 */}
+                      <div className="border-t pt-4">
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="purchaseAmount" className="text-sm">
+                              消費金額
+                            </Label>
+                            <Input
+                              id="purchaseAmount"
+                              type="number"
+                              min="0"
+                              value={newPurchase.amount}
+                              onChange={(e) => setNewPurchase({ ...newPurchase, amount: e.target.value })}
+                              placeholder="例：10000"
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="purchaseDate" className="text-sm">
+                              消費日期
+                            </Label>
+                            <Input
+                              id="purchaseDate"
+                              type="date"
+                              max={new Date().toISOString().split("T")[0]}
+                              value={newPurchase.purchaseDate}
+                              onChange={(e) => setNewPurchase({ ...newPurchase, purchaseDate: e.target.value })}
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="purchaseDescription" className="text-sm">
+                              消費說明（選填）
+                            </Label>
+                            <Input
+                              id="purchaseDescription"
+                              value={newPurchase.description}
+                              onChange={(e) => setNewPurchase({ ...newPurchase, description: e.target.value })}
+                              placeholder="例：購買生活用品"
+                              className="mt-1"
+                            />
+                          </div>
+
+                          <Button
+                            onClick={addPurchaseRecord}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                            disabled={!calculatorForm.bankName}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            新增消費記錄
+                          </Button>
+                          {!calculatorForm.bankName && <p className="text-xs text-red-600">請先選擇銀行名稱</p>}
                         </div>
-
-                        <div>
-                          <Label htmlFor="paymentDueDay" className="text-sm">
-                            繳款截止日 (每月哪一日)
-                          </Label>
-                          <Input
-                            id="paymentDueDay"
-                            type="number"
-                            min="1"
-                            max="31"
-                            value={calculatorForm.paymentDueDay}
-                            onChange={(e) => handleFormChange("paymentDueDay", e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
                       </div>
-
-                      <div>
-                        <Label htmlFor="latePaymentFee" className="text-sm">
-                          違約金 (元)
-                        </Label>
-                        <Input
-                          id="latePaymentFee"
-                          type="number"
-                          min="0"
-                          value={calculatorForm.latePaymentFee}
-                          onChange={(e) => handleFormChange("latePaymentFee", e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* 新增消費記錄 */}
-                  <Card className="shadow-lg">
-                    <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                      <CardTitle className="flex items-center text-lg">
-                        <DollarSign className="w-5 h-5 mr-2" />
-                        新增消費記錄
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="p-4 space-y-4">
-                      <div>
-                        <Label htmlFor="purchaseAmount" className="text-sm">
-                          消費金額
-                        </Label>
-                        <Input
-                          id="purchaseAmount"
-                          type="number"
-                          min="0"
-                          value={newPurchase.amount}
-                          onChange={(e) => setNewPurchase({ ...newPurchase, amount: e.target.value })}
-                          placeholder="例：10000"
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="purchaseDate" className="text-sm">
-                          消費日期
-                        </Label>
-                        <Input
-                          id="purchaseDate"
-                          type="date"
-                          max={new Date().toISOString().split("T")[0]}
-                          value={newPurchase.purchaseDate}
-                          onChange={(e) => setNewPurchase({ ...newPurchase, purchaseDate: e.target.value })}
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="purchaseDescription" className="text-sm">
-                          消費說明（選填）
-                        </Label>
-                        <Input
-                          id="purchaseDescription"
-                          value={newPurchase.description}
-                          onChange={(e) => setNewPurchase({ ...newPurchase, description: e.target.value })}
-                          placeholder="例：購買生活用品"
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <Button
-                        onClick={addPurchaseRecord}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        disabled={!calculatorForm.bankName}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        新增消費記錄
-                      </Button>
-                      {!calculatorForm.bankName && <p className="text-xs text-red-600">請先選擇銀行名稱</p>}
                     </CardContent>
                   </Card>
 
@@ -903,32 +1354,23 @@ const CreditCardInterestCalculator = () => {
                         <RadioGroup
                           value={newPayment.paymentType}
                           onValueChange={handlePaymentTypeChange}
-                          className="grid grid-cols-2 gap-2 mt-2"
+                          className="grid grid-cols-1 gap-2 mt-2"
                         >
-                          <div className="flex items-center space-x-2 p-2 border rounded">
-                            <RadioGroupItem value="full" id="full" />
-                            <Label htmlFor="full" className="text-xs">
-                              全額繳清
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2 p-2 border rounded">
-                            <RadioGroupItem value="partial" id="partial" />
-                            <Label htmlFor="partial" className="text-xs">
-                              部分繳清
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2 p-2 border rounded">
-                            <RadioGroupItem value="minimum" id="minimum" />
-                            <Label htmlFor="minimum" className="text-xs">
-                              最低應繳
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2 p-2 border rounded">
-                            <RadioGroupItem value="custom" id="custom" />
-                            <Label htmlFor="custom" className="text-xs">
-                              自訂金額
-                            </Label>
-                          </div>
+                          {getPaymentTypeOptions().map((option) => (
+                            <div key={option.value} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
+                              <RadioGroupItem value={option.value} id={option.value} />
+                              <div className="flex-1">
+                                <Label htmlFor={option.value} className="text-sm font-medium">
+                                  {option.label}
+                                </Label>
+                                {option.amount !== null && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    {option.description}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </RadioGroup>
                       </div>
 
@@ -979,89 +1421,7 @@ const CreditCardInterestCalculator = () => {
                   </Card>
                 </div>
 
-                {/* 中間：當前銀行記錄 */}
-                <div className="lg:col-span-1">
-                  <Card className="shadow-lg h-full">
-                    <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
-                      <CardTitle className="flex items-center text-lg">
-                        <FileText className="w-5 h-5 mr-2" />
-                        {calculatorForm.bankName ? `${calculatorForm.bankName} 記錄` : "選擇銀行查看記錄"}
-                      </CardTitle>
-                      <CardDescription className="text-purple-100">
-                        {calculatorForm.bankName ? "當前銀行的消費與繳款記錄" : "請先選擇銀行名稱"}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="p-4">
-                      {calculatorForm.bankName ? (
-                        savedRecords.filter((r) => r.bankName === calculatorForm.bankName).length > 0 ? (
-                          <div className="space-y-3 max-h-96 overflow-y-auto">
-                            {savedRecords
-                              .filter((r) => r.bankName === calculatorForm.bankName)
-                              .sort((a, b) => {
-                                const dateA = new Date(a.type === "purchase" ? a.purchaseDate : a.paymentDate)
-                                const dateB = new Date(b.type === "purchase" ? b.purchaseDate : b.paymentDate)
-                                return dateB - dateA
-                              })
-                              .map((record) => (
-                                <div key={record.id} className="p-3 border rounded-lg bg-gray-50">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center space-x-2">{getRecordTypeBadge(record.type)}</div>
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        deleteRecord(record.id)
-                                      }}
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-red-600 hover:text-red-800"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-
-                                  <div className="text-sm">
-                                    <div className="font-semibold text-gray-800">
-                                      NT$ {record.amount.toLocaleString()}
-                                    </div>
-                                    <div className="text-gray-600">
-                                      {record.type === "purchase"
-                                        ? `消費日：${formatFullDate(record.purchaseDate)}`
-                                        : `繳款日：${formatFullDate(record.paymentDate)}`}
-                                    </div>
-                                    {record.type === "purchase" && (
-                                      <div className="text-xs text-gray-500">
-                                        入帳日：{formatFullDate(record.postingDate)}
-                                      </div>
-                                    )}
-                                    {record.description && (
-                                      <div className="text-xs text-gray-500 mt-1">{record.description}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <h3 className="text-sm font-medium text-gray-600 mb-1">
-                              尚無 {calculatorForm.bankName} 記錄
-                            </h3>
-                            <p className="text-xs text-gray-500">請新增消費或繳款記錄</p>
-                          </div>
-                        )
-                      ) : (
-                        <div className="text-center py-8">
-                          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                          <h3 className="text-sm font-medium text-gray-600 mb-1">請選擇銀行</h3>
-                          <p className="text-xs text-gray-500">選擇銀行後即可查看該銀行的記錄</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* 右側：計算結果區 */}
+                {/* 中間：循環利息計算結果 */}
                 <div className="lg:col-span-1">
                   <Card className="shadow-lg h-full">
                     <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white">
@@ -1116,22 +1476,51 @@ const CreditCardInterestCalculator = () => {
                             </div>
                           </div>
 
-                          {/* 繳款狀態 */}
-                          <div className="text-center p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm font-medium text-gray-700 mb-1">繳款狀態</div>
-                            {getPaymentStatusBadge(calculationResult.paymentStatus)}
-                          </div>
+
 
                           {/* 下期帳單 */}
                           <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                             <h4 className="text-sm font-semibold text-purple-800 mb-2">下期帳單預估</h4>
                             <div className="grid grid-cols-1 gap-2">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-600">帳單總額：</span>
-                                <span className="font-semibold text-purple-700">
-                                  NT$ {Number.parseInt(calculationResult.nextStatementTotal).toLocaleString()}
-                                </span>
+                              {/* 帳單總額明細 */}
+                              <div className="text-xs space-y-1 mb-2">
+                                <div className="text-gray-600 font-medium mb-1">帳單總額明細：</div>
+                                <div className="pl-2 space-y-1">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">剩餘欠款：</span>
+                                    <span className="text-gray-700">
+                                      NT$ {Number.parseInt(calculationResult.unpaidAmount).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  {Number.parseInt(calculationResult.interest) > 0 && (
+                                    <div className="flex justify-between">
+                                      <span className="text-orange-600">循環利息：</span>
+                                      <span className="text-orange-700">
+                                        NT$ {Number.parseInt(calculationResult.interest).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {Number.parseInt(calculationResult.defaultFee) > 0 && (
+                                    <div className="flex justify-between">
+                                      <span className="text-red-600">違約金：</span>
+                                      <span className="text-red-700">
+                                        NT$ {Number.parseInt(calculationResult.defaultFee).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                              
+                              {/* 總計 */}
+                              <div className="border-t pt-2">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-600 font-medium">帳單總額：</span>
+                                  <span className="font-semibold text-purple-700">
+                                    NT$ {Number.parseInt(calculationResult.nextStatementTotal).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                              
                               <div className="flex justify-between text-xs">
                                 <span className="text-gray-600">最低應繳：</span>
                                 <span className="font-semibold text-purple-700">
@@ -1162,6 +1551,146 @@ const CreditCardInterestCalculator = () => {
                           <p className="text-xs text-gray-500">
                             {calculatorForm.bankName ? "請新增消費記錄開始計算" : "請先選擇銀行"}
                           </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* 右側：當前銀行記錄 */}
+                <div className="lg:col-span-1">
+                  <Card className="shadow-lg h-full">
+                    <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+                      <CardTitle className="flex items-center justify-between text-lg">
+                        <div className="flex items-center">
+                          <FileText className="w-5 h-5 mr-2" />
+                          信用卡使用紀錄
+                        </div>
+                        {calculatorForm.bankName && (
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              onClick={toggleSelectMode}
+                              size="sm"
+                              variant={isSelectMode ? "destructive" : "secondary"}
+                              className="text-xs px-2 py-1 h-7"
+                            >
+                              {isSelectMode ? "取消選擇" : "批次選擇"}
+                            </Button>
+                            {isSelectMode && (
+                              <>
+                                <Button
+                                  onClick={deleteSelectedRecords}
+                                  size="sm"
+                                  variant="destructive"
+                                  className="text-xs px-2 py-1 h-7"
+                                  disabled={selectedRecords.size === 0}
+                                >
+                                  刪除選中 ({selectedRecords.size})
+                                </Button>
+                                <Button
+                                  onClick={deleteAllBankRecords}
+                                  size="sm"
+                                  variant="destructive"
+                                  className="text-xs px-2 py-1 h-7"
+                                >
+                                  全部刪除
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="text-purple-100">
+                        {calculatorForm.bankName ? `${calculatorForm.bankName} 的消費與繳款記錄` : "請先選擇銀行名稱"}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="p-4">
+                      {calculatorForm.bankName ? (
+                        savedRecords.filter((r) => r.bankName === calculatorForm.bankName).length > 0 ? (
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {savedRecords
+                              .filter((r) => r.bankName === calculatorForm.bankName)
+                              .sort((a, b) => {
+                                const dateA = new Date(a.type === "purchase" ? a.purchaseDate : a.paymentDate)
+                                const dateB = new Date(b.type === "purchase" ? b.purchaseDate : b.paymentDate)
+                                return dateB - dateA
+                              })
+                              .map((record) => (
+                                <div key={record.id} className="p-3 border rounded-lg bg-gray-50">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center space-x-2">
+                                      {isSelectMode && (
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedRecords.has(record.id)}
+                                          onChange={() => toggleRecordSelection(record.id)}
+                                          className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                                        />
+                                      )}
+                                      {getRecordTypeBadge(record.type)}
+                                    </div>
+                                    <div className="flex space-x-1">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          startEditRecord(record)
+                                        }}
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-blue-600 hover:text-blue-800"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          deleteRecord(record.id)
+                                        }}
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-sm">
+                                    <div className="font-semibold text-gray-800">
+                                      NT$ {record.amount.toLocaleString()}
+                                    </div>
+                                    <div className="text-gray-600">
+                                      {record.type === "purchase"
+                                        ? `消費日：${formatFullDate(record.purchaseDate)}`
+                                        : `繳款日：${formatFullDate(record.paymentDate)}`}
+                                    </div>
+                                    {record.type === "purchase" && (
+                                      <div className="text-xs text-gray-500">
+                                        入帳日：{formatFullDate(record.postingDate)}
+                                      </div>
+                                    )}
+                                    {record.description && (
+                                      <div className="text-xs text-gray-500 mt-1">{record.description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <h3 className="text-sm font-medium text-gray-600 mb-1">
+                              尚無 {calculatorForm.bankName} 記錄
+                            </h3>
+                            <p className="text-xs text-gray-500">請新增消費或繳款記錄</p>
+                          </div>
+                        )
+                      ) : (
+                        <div className="text-center py-8">
+                          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                          <h3 className="text-sm font-medium text-gray-600 mb-1">請選擇銀行</h3>
+                          <p className="text-xs text-gray-500">選擇銀行後即可查看該銀行的記錄</p>
                         </div>
                       )}
                     </CardContent>
@@ -1265,10 +1794,47 @@ const CreditCardInterestCalculator = () => {
                       </CardTitle>
                       <CardDescription>管理所有銀行的消費與繳款記錄</CardDescription>
                     </div>
-                    <Button onClick={() => setShowRecordsTable(!showRecordsTable)} variant="outline">
-                      {showRecordsTable ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                      {showRecordsTable ? "隱藏表格" : "顯示表格"}
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button onClick={() => setShowRecordsTable(!showRecordsTable)} variant="outline">
+                        {showRecordsTable ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                        {showRecordsTable ? "隱藏表格" : "顯示表格"}
+                      </Button>
+                      <Button
+                        onClick={toggleSelectMode}
+                        size="sm"
+                        variant={isSelectMode ? "destructive" : "secondary"}
+                        className="text-xs px-2 py-1 h-7"
+                      >
+                        {isSelectMode ? "取消選擇" : "批次選擇"}
+                      </Button>
+                      {isSelectMode && (
+                        <>
+                          <Button
+                            onClick={deleteSelectedRecords}
+                            size="sm"
+                            variant="destructive"
+                            className="text-xs px-2 py-1 h-7"
+                            disabled={selectedRecords.size === 0}
+                          >
+                            刪除選中 ({selectedRecords.size})
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (confirm(`確定要刪除所有記錄嗎？共 ${savedRecords.length} 筆`)) {
+                                setSavedRecords([])
+                                setSelectedRecords(new Set())
+                                setIsSelectMode(false)
+                              }
+                            }}
+                            size="sm"
+                            variant="destructive"
+                            className="text-xs px-2 py-1 h-7"
+                          >
+                            全部刪除
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
 
@@ -1285,7 +1851,7 @@ const CreditCardInterestCalculator = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="all">所有銀行</SelectItem>
-                              {getAllBanks().map((bank) => (
+                              {getBankOptions().map((bank) => (
                                 <SelectItem key={bank} value={bank}>
                                   {bank}
                                 </SelectItem>
@@ -1329,6 +1895,22 @@ const CreditCardInterestCalculator = () => {
                           <table className="w-full text-sm border-collapse border border-gray-300">
                             <thead className="bg-gray-100">
                               <tr>
+                                {isSelectMode && (
+                                  <th className="border border-gray-300 px-4 py-2 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedRecords.size === getSortedRecords().length && getSortedRecords().length > 0}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedRecords(new Set(getSortedRecords().map(r => r.id)))
+                                        } else {
+                                          setSelectedRecords(new Set())
+                                        }
+                                      }}
+                                      className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                                    />
+                                  </th>
+                                )}
                                 <th className="border border-gray-300 px-4 py-2 text-left">類型</th>
                                 <th className="border border-gray-300 px-4 py-2 text-left">銀行</th>
                                 <th className="border border-gray-300 px-4 py-2 text-left">金額</th>
@@ -1340,6 +1922,16 @@ const CreditCardInterestCalculator = () => {
                             <tbody>
                               {getSortedRecords().map((record) => (
                                 <tr key={record.id} className="hover:bg-gray-50">
+                                  {isSelectMode && (
+                                    <td className="border border-gray-300 px-4 py-2 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedRecords.has(record.id)}
+                                        onChange={() => toggleRecordSelection(record.id)}
+                                        className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                                      />
+                                    </td>
+                                  )}
                                   <td className="border border-gray-300 px-4 py-2">
                                     {getRecordTypeBadge(record.type)}
                                   </td>
@@ -1366,14 +1958,24 @@ const CreditCardInterestCalculator = () => {
                                   </td>
                                   <td className="border border-gray-300 px-4 py-2">{record.description}</td>
                                   <td className="border border-gray-300 px-4 py-2">
-                                    <Button
-                                      onClick={() => deleteRecord(record.id)}
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-red-600 hover:text-red-800"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex space-x-1">
+                                      <Button
+                                        onClick={() => startEditRecord(record)}
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-blue-600 hover:text-blue-800"
+                                      >
+                                        <FileText className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        onClick={() => deleteRecord(record.id)}
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-red-600 hover:text-red-800"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -1395,14 +1997,24 @@ const CreditCardInterestCalculator = () => {
                                     {record.bankName}
                                   </Badge>
                                 </div>
-                                <Button
-                                  onClick={() => deleteRecord(record.id)}
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                <div className="flex space-x-1">
+                                  <Button
+                                    onClick={() => startEditRecord(record)}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    onClick={() => deleteRecord(record.id)}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </div>
 
                               <div className="space-y-2">
@@ -1617,6 +2229,87 @@ const CreditCardInterestCalculator = () => {
 
                 <div className="flex justify-end p-6 pt-0">
                   <Button onClick={() => setShowHelpModal(false)}>關閉</Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* 編輯記錄彈窗 */}
+          {editingRecord && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                    編輯{editingRecord.type === "purchase" ? "消費" : "繳款"}記錄
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="editAmount" className="text-sm">
+                      金額
+                    </Label>
+                    <Input
+                      id="editAmount"
+                      type="number"
+                      min="0"
+                      value={editForm.amount}
+                      onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="editDate" className="text-sm">
+                      {editingRecord.type === "purchase" ? "消費日期" : "繳款日期"}
+                    </Label>
+                    <Input
+                      id="editDate"
+                      type="date"
+                      max={new Date().toISOString().split("T")[0]}
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {editingRecord.type === "purchase" && (
+                    <div>
+                      <Label htmlFor="editPostingDate" className="text-sm">
+                        入帳日期
+                      </Label>
+                      <Input
+                        id="editPostingDate"
+                        type="date"
+                        value={editForm.postingDate}
+                        onChange={(e) => setEditForm({ ...editForm, postingDate: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="editDescription" className="text-sm">
+                      說明
+                    </Label>
+                    <Input
+                      id="editDescription"
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      placeholder="記錄說明"
+                      className="mt-1"
+                    />
+                  </div>
+                </CardContent>
+
+                <div className="flex justify-end space-x-2 p-6 pt-0">
+                  <Button variant="outline" onClick={cancelEdit}>
+                    取消
+                  </Button>
+                  <Button onClick={saveEditRecord}>
+                    保存
+                  </Button>
                 </div>
               </Card>
             </div>
